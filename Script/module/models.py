@@ -5,14 +5,11 @@ import shutil
 import random
 import numpy as np
 import pandas as pd
-import joblib
 import gc
 
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, KFold, ParameterGrid
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, brier_score_loss, roc_auc_score, roc_curve, precision_recall_fscore_support
+from sklearn.model_selection import  KFold, ParameterGrid
+from sklearn.metrics import f1_score, roc_auc_score
 import torch
-import torchtuples as tt
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset
@@ -20,9 +17,6 @@ from torch.utils.data import DataLoader
 import dgl
 import dgl.nn.pytorch as dglnn
 import networkx as nx
-
-from torchtuples.tupletree import tuplefy
-from typing import Dict
 
 import module.utils as utils
 
@@ -127,7 +121,7 @@ class Load_Dataset():
         # Expression
         self.x_expression = pd.read_pickle(array_path)
         
-        # Clinicalデータを読み込む
+        # Load clinical data
         self.clinicalDf = self.load_clinical(clinical_path)
 
     def load_clinical(self, file):
@@ -269,9 +263,10 @@ class MLP(nn.Module):
             self.dropout = nn.Dropout(p=dropout)
             self.final_dim = hidden_dims[2]
             
-            self.norm1 = nn.LayerNorm(hidden_dims[0], eps=1e-05)
-            self.norm2 = nn.LayerNorm(hidden_dims[1], eps=1e-05)
-            self.norm3 = nn.LayerNorm(hidden_dims[2], eps=1e-05)
+            self.norm1 = nn.BatchNorm1d(hidden_dims[0])
+            self.norm2 = nn.BatchNorm1d(hidden_dims[1])
+            self.norm3 = nn.BatchNorm1d(hidden_dims[2])
+
         else:
             self.final_dim = in_dim
 
@@ -420,8 +415,6 @@ class GCN_classifier_layer2(GCN_classifier):
         x = F.softmax(x, dim=1)
         return x
 
-
-
 class ModelClassifier():
     def __init__(self, path="ModelRecord", device=None):
         self.path = path
@@ -467,7 +460,7 @@ class ModelClassifier():
         return
 
     def load_bestmodel(self, load_log=True):
-        # 保存した最良モデルを読み込む
+        # Load the saved best model
         if load_log:
             gs_scores_df = pd.read_csv(os.path.join(self.path, "grid_search.csv"), index_col=0)
         else:
@@ -557,7 +550,7 @@ class ModelClassifier():
                         
             last_val_loss = val_epoch_loss
 
-        # 終了前にchkptを復帰
+        # load check point file before finish
         self.net.load_state_dict(torch.load(self.chkpt, map_location=torch.device("cpu")), strict=True)
         self.net.to(device)
 
@@ -610,14 +603,14 @@ class ModelClassifier():
                 X_train, X_val = X[train_idx,:], X[val_idx,:]
                 Y_train, Y_val = Y[train_idx], Y[val_idx]
 
-                # サンプラー
+                # weighted sampler
                 self.create_weighted_sampler(Y_train)
 
-                # データセットの作成
+                # process dataset
                 train_dataset = TensorDataset(X_train, Y_train)
                 val_dataset = TensorDataset(X_val, Y_val)
                 
-                # データローダー
+                # dataloader
                 train_loader = DataLoader(train_dataset, batch_size=p["n_batch"], sampler=self.weighted_sampler)
                 val_loader = DataLoader(val_dataset, batch_size=p["n_batch"])
 

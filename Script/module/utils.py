@@ -1,9 +1,7 @@
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-import sklearn
 from sklearn.metrics import confusion_matrix
 import itertools
 
@@ -66,7 +64,7 @@ def create_gsea_dataset(df, label_idx, gene_id_type="symbol", filename="gctfile"
     merged_idx = list()
     [merged_idx.extend(label_idx[k]) for k in label_idx]
 
-    # Caseのラベル付け用Dictionary
+    # Dictionary to labe cases
     reverse_dict = {}
     i = 0
     for k,v in label_idx.items():
@@ -74,7 +72,7 @@ def create_gsea_dataset(df, label_idx, gene_id_type="symbol", filename="gctfile"
             reverse_dict[idx] = i
         i+=1
         
-    # データ抽出
+    # data extraction
     gct_df = df.loc[:, merged_idx].copy()
     #gct_df.index = gct_df.index.map(gene_convert_dict)
     N_gene   = gct_df.shape[0]
